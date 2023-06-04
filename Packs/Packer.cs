@@ -7,26 +7,39 @@ using System.Text;
 
 namespace Packer
 {
-    class Packer    
+    public class APIException : Exception
+    {
+        public APIException(string message): base(message)
+        {
+
+        }
+    }
+
+    public static class PackerAPI    
     {
         
         static string Pack(string filepath)
         {
             //String Array to store the lines of data in the file
             string[] data;
+            
             //Regular Expressions for Finding the first value (MaxWeight) in the UTF-8 File
             Regex RegexMaxWeight = new Regex(@"(?<MaxWeight>\d+)\s*:\s*");
+            
             //Regular Expressions for Finding the Package Parameters one or more times enclosed in () in the UTF-8 File
             Regex RegexPackParams = new Regex(@"(\((?<Index>\d+),(?<Weight>[0-9.]+),€(?<Cost>\d+)\))+");
+            
             //Custom Type List of data extracted from the UTF-8 File
             List<(int MaxWeight, int Index, decimal Weight, int Cost)> dataExtracted = new();
+
+           
 
             //Try catch for opening the file, if doesn't exits throw error
             try
             {
                 //get the data into an array of each line in file
                 data = File.ReadAllLines($"{filepath}");
-
+                                
                 //Try Match on Regex if file is empty throw error
                 try
                 {
@@ -49,27 +62,37 @@ namespace Packer
                             int Index = int.Parse(match.Groups["Index"].Value);
                             decimal Weight = decimal.Parse(match.Groups["Weight"].Value);
                             int Cost = int.Parse(match.Groups["Cost"].Value);
-
-                            //Constraints if Package weight is greater than 100 or less than 0, then invalid skip over, and item cost less than 0 or greater than 100, then invalid
-                            if ((MaxWeight < 0 || MaxWeight > 100) || (Cost < 0 || Cost > 100))
+                            try
                             {
-                                continue;
+                                //Constraints if Package weight is greater than 100 or less than 0, then invalid skip over, and item cost less than 0 or greater than 100, then invalid
+                                if ((MaxWeight < 0 || MaxWeight > 100))
+                                {
+                                    throw new APIException($"Package {Index}: Maximum Weight {MaxWeight},does not meet the Max/Min Weight Range Requirements (0-100) of the Package");
+                                }
+                                else if ((Cost < 0 || Cost > 100))
+                                {
+
+                                    throw new APIException($"Package {Index}: Cost {Cost},does not meet the Max/Min Cost Range Requirements (0-100) of the Package");
+                                }
+                                else
+                                {
+                                    // Add the extracted data to the dataExtracted list collection
+                                    dataExtracted.Add((MaxWeight, Index, Weight, Cost));
+                                }
                             }
-                            else
+                            catch (APIException ex)
                             {
-                                // Add the extracted data to the dataExtracted list collection
-                                dataExtracted.Add((MaxWeight, Index, Weight, Cost));
-
+                                Console.WriteLine(ex);
+                                Console.WriteLine();
                             }
 
                         }
 
                     }
                 }
-                catch (ArgumentNullException)
+                catch (ArgumentNullException e)
                 {
-
-                    throw;
+                    Console.WriteLine(e);
                 }
 
                 /*created a variable to store the grouped data, found a method using the LINQ library to define a parameter Maxweight, and using
@@ -105,42 +128,17 @@ namespace Packer
                         output.AppendLine(string.Join(", ", finalPackages));
                         output.AppendLine();//Extra Line between values
                     }                  
-                                       
+                                 
                 }
-
+                //Set StringBuilder to a String and Return value
                 return output.ToString();
-
-                /*Tried to use for loop to set MaxWeight on each entry in the list, found that this would just create a second list that keeps overwriting the values, 
-                and would have required a second list for temp to store each Maxweight/Parameter pairing together in a seperate list which would have been pointless
-
-                int CurrentMaxWeight = 0;
-                for (int i = 0; i < dataExtracted.Count; i++)
-                {
-
-                if(dataExtracted[i].MaxWeight != CurrentMaxWeight)
-                {
-                    CurrentMaxWeight = dataExtracted[i].MaxWeight;                                
-                }
-                else
-                {
-                    List<(int MaxWeight, int Index, decimal Weight, int Cost)> temp = new();
-                    temp.Add(dataExtracted[i]);
-                }
-
-                }*/
-
-
-                /*Tested if List is displaying correctly
-                foreach (var value in dataExtracted)
-                    {
-                        Console.WriteLine(value);
-                    }*/
             }
-            catch (FileNotFoundException)
+            catch (FileNotFoundException e)
             {
-
-                throw;
+                Console.WriteLine(e);
+                return null;
             }
+
 
         }
         /*Static Method that will return a List of Indexes given the required Constraints: Maximum Cost, Weight less than or equal to the Package MaxWeight
@@ -156,19 +154,27 @@ namespace Packer
             /*For Loop will check if the sortedList (sorted by Cost, Grouped by Max Weight) which is var index, has an item weight that is greater than the Maxweight of the Package
             if the weight is greater than max weight it is ignored, if not it will add that item into
             Sorted packages since it is both under the weight limit and the Maximum Cost possible*/
-
-            foreach (var sorted in sortedList)
+            try
             {
-                if (sorted.weight <= currentWeight)
+                foreach (var sorted in sortedList)
                 {
-                    SortedPackages.Add(sorted.index);
-                    currentWeight -= sorted.weight;
-                }
-                else
-                {
-                    continue;
+                    if (sorted.weight <= currentWeight)
+                    {
+                        SortedPackages.Add(sorted.index);
+                        currentWeight -= sorted.weight;
+                    }
+                    else
+                    {
+                        throw new APIException($"Package {sorted.index}: Maximum Weight of Package Reached");
+                    }
                 }
             }
+            catch (APIException ex)
+            {
+                Console.WriteLine(ex);
+                Console.WriteLine();
+            }
+            
             //Return the list of Indexes
             return SortedPackages;
         }
