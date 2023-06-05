@@ -18,7 +18,7 @@ namespace Packer
     public static class PackerAPI    
     {
         
-        static string Pack(string filepath)
+        public static string Pack(string filepath)
         {
             //String Array to store the lines of data in the file
             string[] data;
