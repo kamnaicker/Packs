@@ -165,7 +165,7 @@ namespace Packer
                     }
                     else
                     {
-                        throw new APIException($"Package {sorted.index}: Maximum Weight of Package Reached");
+                        throw new APIException($"Package with Max Weight {sorted.MaxWeight}, Item Number: {sorted.index}: Maximum Weight of Package Reached");
                     }
                 }
             }
